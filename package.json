@@ -1,0 +1,28 @@
+{
+  "name": "credential_store",
+  "version": "1.0.0",
+  "description": "Credential store that uses AWS keystore and Dynamo",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "mocha --watch src/**/**.spec.js",
+    "start-dynamo": "java -Djava.library.path=~/Documents/code/DynamoDBLocal_lib -jar ~/Documents/code/DynamoDBLocal.jar -sharedDb -inMemory"
+  },
+  "keywords": [],
+  "author": "Ernie Billing",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.70.0",
+    "dynamodb-marshaler": "^2.0.0",
+    "promisify-node": "^0.4.0",
+    "restify": "^4.3.0",
+    "uuid": "^3.0.1"
+  },
+  "devDependencies": {
+    "aws-sdk-mock": "^1.7.0",
+    "chai": "^4.0.2",
+    "mocha": "^3.4.2",
+    "mock-fs": "^4.4.1",
+    "sinon": "^2.3.4"
+  }
+}
