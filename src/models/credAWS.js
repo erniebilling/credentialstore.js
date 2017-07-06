@@ -8,7 +8,6 @@ var marshalItem = require('dynamodb-marshaler').marshalItem
 
 AWS.config.update({
     region: config.aws_region,
-    endpoint: config.dynamo_endpoint
 });
 
 var params = {

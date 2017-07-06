@@ -19,20 +19,21 @@ module.exports = {
                     KeyUsage: "ENCRYPT_DECRYPT",
                     Tags: [
                         {
-                            TagKey: 'CreatedBy',
-                            TagValue: 'credential store'
+                            TagKey: "CreatedBy",
+                            TagValue: "credentialStore"
                         }
                     ]
                 }
                 kms.createKey(params, (err, data) => {
                     if (err) {
+                        console.log('create key failed')
                         callback(err, null)
                     } else {
                         // have new key
                         this.cmkId = data.KeyMetadata.KeyId
                         
                         // write key to config file
-                        fs.writeFile(mks_config_file, cmkId, (err) => {
+                        fs.writeFile(mks_config_file, this.cmkId, (err) => {
                             if (err) {
                                 callback(err, null)
                             } else {
@@ -42,8 +43,8 @@ module.exports = {
                     }
                 })
             } else {
-                cmkId = data
-                callback(null, cmkId)
+                this.cmkId = data
+                callback(null, this.cmkId)
             }
         })
     },
@@ -64,7 +65,7 @@ module.exports = {
                     callback(null, { 
                         cmkId: data.KeyId, 
                         encryptedDataKey: data.CiphertextBlob, 
-                        dataKey: data.Plaintext 
+                        dataKey: data.Plaintext
                     })
                 }
             })

@@ -66,12 +66,12 @@ describe('KmsAWS', () => {
         kms.initModel((err, data) => {
             expect(err).to.be.null
             expect(data).to.equal("1234abcd-12ab-34cd-56ef-1234567890ab")
-        })
-        kms.generateKey((err, data) => {
-            expect(err).to.be.null
-            expect(data.cmkId).to.equal("arn:aws:kms:us-east-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab")
-            expect(data.encryptedDataKey).to.equal("0123456789abcdefghij9876543210zy")
-            expect(data.dataKey).to.equal("zy9876543210abcdefghij0123456789")
+            kms.generateKey((err, data) => {
+                expect(err).to.be.null
+                expect(data.cmkId).to.equal("arn:aws:kms:us-east-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab")
+                expect(data.encryptedDataKey).to.equal("0123456789abcdefghij9876543210zy")
+                expect(data.dataKey).to.equal("zy9876543210abcdefghij0123456789")
+            })
         })
     })
     it('decryptKey() returns proper data', () => {
@@ -98,10 +98,10 @@ describe('KmsAWS', () => {
         kms.initModel((err, data) => {
             expect(err).to.be.null
             expect(data).to.equal("1234abcd-12ab-34cd-56ef-1234567890ab")
-        })
-        kms.decryptKey("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab", "0123456789abcdefghij9876543210zy", (err, data) => {
-            expect(err).to.be.null
-            expect(data.dataKey).to.equal("zy9876543210abcdefghij0123456789")    
+            kms.decryptKey("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab", "0123456789abcdefghij9876543210zy", (err, data) => {
+                expect(err).to.be.null
+                expect(data.dataKey).to.equal("zy9876543210abcdefghij0123456789")    
+            })
         })
     })
 })

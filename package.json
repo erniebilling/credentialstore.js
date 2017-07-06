@@ -4,7 +4,7 @@
   "description": "Credential store that uses AWS keystore and Dynamo",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node src/index.js",
     "test": "mocha --watch src/**/**.spec.js",
     "start-dynamo": "java -Djava.library.path=~/Documents/code/DynamoDBLocal_lib -jar ~/Documents/code/DynamoDBLocal.jar -sharedDb -inMemory"
   },
