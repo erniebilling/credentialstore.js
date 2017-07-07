@@ -55,7 +55,7 @@ describe('CredAWS', () => {
         })
         cred.readCred("my cred id", (err, data) => {
             expect(err).to.be.null
-            expect(data).to.equal("my cred")
+            expect(data.credentialData).to.equal("my cred")
         }) 
     })
     it('ListCreds should complete with credential list', () => {
@@ -76,6 +76,24 @@ describe('CredAWS', () => {
         cred.listCreds((err, data) => {
             expect(err).to.be.null
             expect(data.length).to.equal(2)
+        })
+    })
+    it('DeleteCred should complete with success', () => {
+        AWS.mock('DynamoDB', 'describeTable', (params, callback) => {
+            callback(null, 'existing table')
+        })
+        AWS.mock('DynamoDB', 'deleteItem', (params, callback) => {
+            var data = {
+                ConsumedCapacity: {
+                    CapacityUnits: 2,
+                    TableName: "cred"
+                }
+            }
+            callback(null, data)
+        })
+        cred.deleteCred("some_id", (err, data) => {
+            expect(err).to.be.null
+            expect(data.ConsumedCapacity.TableName).to.equal("cred")
         })
     })
 })

@@ -74,6 +74,7 @@ module.exports = {
         })
     },
     // retrieve a credential from the store
+    // returns { credentialID: , credentialData:  }
     readCred: function(credID, callback) {
         var dynamodb = new AWS.DynamoDB();
         
@@ -88,15 +89,22 @@ module.exports = {
             } else {
                 dynamodb.getItem(query, (getItemErr, getItemData) => {
                     if (getItemErr) {
-                        callback("Unable to fetch credential.  Error JSON: " + JSON.stringify(err, null, 2), null)
+                        console.log(getItemErr)
+                        callback(getItemErr, null)
                     } else {
-                        callback(null, unmarshalItem(getItemData.Item).credentialData)
+                        if (getItemData.Item) {
+                            callback(null, unmarshalItem(getItemData.Item))
+                        } else {
+                            // item not found
+                            callback({error: "ENOENT"})
+                        }
                     }
                 })
             }
         })
     },
     // list the credentials in the store
+    // returns [{ credentialID: , credentialData:  }]
     listCreds: function(callback) {
         var dynamodb = new AWS.DynamoDB();
         
@@ -115,6 +123,28 @@ module.exports = {
                         callback(null, data.Items.map((item) => {
                             return unmarshalItem(item)
                         }))
+                    }
+                })
+            }
+        })
+    },
+    deleteCred: function(credID, callback) {
+        var dynamodb = new AWS.DynamoDB();
+        
+        var query = {
+            TableName: params.TableName,
+            Key: marshalItem({credentialID: credID})
+        }
+        
+        dynamodb.describeTable({TableName: params.TableName}, (describeErr, describeData) => {
+            if (describeErr) {
+                callback(describeErr, null)
+            } else {
+                dynamodb.deleteItem(query, (err, data) => {
+                    if (err) {
+                        callback("Unable to delete.  Error JSON: " + JSON.stringify(err, null, 2), null)
+                    } else {
+                        callback(null, data)
                     }
                 })
             }

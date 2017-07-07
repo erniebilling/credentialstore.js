@@ -7,11 +7,14 @@ var path = require('path')
 
 // credential store controllers
 
-var keyDecryptor = function(cred) {
+var credBuilder = function(cred, baseURL) {
     return new Promise((resolve,reject) => {
-        keymgmt.decryptKey(cred.cmkId, Buffer.from(cred.encryptedDataKey, 'hex'))
+        keymgmt.decryptKey(cred.credentialData.cmkId, Buffer.from(cred.credentialData.encryptedDataKey, 'hex'))
         .then((data) => {
-            resolve({dataKey: data.dataKey, cipherData: cred.encryptedData})    
+            let ret = JSON.parse(crypto.decrypt(data.dataKey, cred.credentialData.encryptedData))
+            ret.id = cred.credentialID
+            ret.links = [{rel:'self', href:path.join(baseURL, cred.credentialID)}]
+            resolve(ret)
         })
         .catch((err) => {
             reject(err)
@@ -22,23 +25,20 @@ var keyDecryptor = function(cred) {
 module.exports = {
     // add a new credential to the store
     // return new credential id
+    // expects { type: , name:, data: }
     addCredential: function(req, res, next) {
-        console.log("adding credential " + JSON.stringify(req.body,null,2))
         // get key
         keymgmt.generateKey()
         .then(msg => {
-            console.log("created key: " + JSON.stringify(msg,null,2))
-            cred = {
+            dataCipher = {
                 cmkId: msg.cmkId, 
                 encryptedDataKey: msg.encryptedDataKey.toString('hex'), 
-                encryptedData: crypto.encrypt(msg.dataKey, JSON.stringify(req.body))     
+                encryptedData: crypto.encrypt(msg.dataKey, JSON.stringify(req.body.data))     
             }
-            console.log('encrypted cred ' + JSON.stringify(cred,null,2))
-            return model.createCred(cred)
+            return model.createCred({type: req.body.type, name: req.body.name, data: dataCipher})
         })
         .then(id => {
-            console.log("stored credential: " + JSON.stringify(id,null,2))
-            res.header('location', path.join('/credential/creds', id))
+            res.header('location', path.join(req.url, id))
             res.send(201)
             next()
         })
@@ -51,13 +51,11 @@ module.exports = {
         model.listCreds()
         .then(rawCreds => {
             return Promise.all(rawCreds.map((cred) => {
-                return keyDecryptor(cred.credentialData)
+                return credBuilder(cred, req.url)
             }))
         })
         .then(creds => {
-            res.send(200, creds.map((cred) => {
-                return crypto.decrypt(cred.dataKey, cred.cipherData)
-            }))
+            res.send(200, { items: creds, itemCount: creds.length})
             next();
         })
         .catch(err => {
@@ -69,17 +67,26 @@ module.exports = {
         model.readCred(req.params.id)
         .then(data => {
             // decrypt data
-            return keyDecryptor(data)
+            return credBuilder(data,req.url)
         })
-        .then(keyData => {
-            res.send(200,crypto.decrypt(keyData.dataKey, keyData.cipherData))
-            next()
+        .then(cred => {
+            res.send(200,cred)
         }).catch(err => {
-            res.send(500,err)
+            if (err.error === "ENOENT") {
+                res.send(404)
+            } else {
+                res.send(500,err)
+            }
         })
     },
     // delete credential by id
     deleteCredential: function(req, res, next) {
-        
+        model.deleteCred(req.params.id)
+        .then(data => {
+            res.send(204)
+        })
+        .catch(err => {
+            res.send(500,err)
+        })
     }
 }
