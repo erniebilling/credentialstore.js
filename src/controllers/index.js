@@ -9,11 +9,15 @@ var path = require('path')
 
 var credBuilder = function(cred, baseURL) {
     return new Promise((resolve,reject) => {
-        keymgmt.decryptKey(cred.credentialData.cmkId, Buffer.from(cred.credentialData.encryptedDataKey, 'hex'))
+        keymgmt.decryptKey(cred.credentialData.data.cmkId, Buffer.from(cred.credentialData.data.encryptedDataKey, 'hex'))
         .then((data) => {
-            let ret = JSON.parse(crypto.decrypt(data.dataKey, cred.credentialData.encryptedData))
-            ret.id = cred.credentialID
-            ret.links = [{rel:'self', href:path.join(baseURL, cred.credentialID)}]
+            let ret = {
+                data: JSON.parse(crypto.decrypt(data.dataKey, cred.credentialData.data.encryptedData)),
+                name: cred.credentialData.name,
+                type: cred.credentialData.type,
+                id: cred.credentialID,
+                links: [{rel:'self', href:path.join(baseURL, cred.credentialID)}]
+            }
             resolve(ret)
         })
         .catch((err) => {
@@ -67,7 +71,7 @@ module.exports = {
         model.readCred(req.params.id)
         .then(data => {
             // decrypt data
-            return credBuilder(data,req.url)
+            return credBuilder(data,path.dirname(req.url))
         })
         .then(cred => {
             res.send(200,cred)
