@@ -16,13 +16,45 @@ var params = {
         { AttributeName: "credentialID", KeyType: "HASH"} // partition key
     ],
     AttributeDefinitions: [
-        { AttributeName: "credentialID", AttributeType: "S"}  // string (guid)
+        { AttributeName: "credentialID", AttributeType: "S"},  // string (guid)
+        { AttributeName: "name", AttributeType: "S"},
+        { AttributeName: "credType", AttributeType: "S"}
     ],
     ProvisionedThroughput: {
         ReadCapacityUnits: 5,
         WriteCapacityUnits: 5
     }
 };
+
+var unmarshalCred = function(dynamoItem) {
+   let item = unmarshalItem(dynamoItem)
+   return {
+       credentialID: item.credentialID,
+       name: item.name,
+       type: item.credType,
+       data: item.credentialData
+   }
+}
+
+var scanCreds = function(query, callback) {
+    var dynamodb = new AWS.DynamoDB();
+
+    dynamodb.describeTable({TableName: params.TableName}, (err, data) => {
+        if (err) {
+            callback(err, null)
+        } else {
+            dynamodb.scan(query, (err, data) => {
+                if (err) {
+                    callback("Unable to scan table.  Error JSON: " + JSON.stringify(err, null, 2), null)
+                } else {
+                    callback(null, data.Items.map((item) => {
+                        return unmarshalCred(item)
+                    }))
+                }
+            })
+        }
+    })    
+}
 
 module.exports = {
     // initialize the model
@@ -51,12 +83,18 @@ module.exports = {
         })
     },
     // create a new credential in the db
+    // expects credData to be { type:, name:, data: }
     createCred: function(credData, callback) {
         var dynamodb = new AWS.DynamoDB();
         var newID = uuid();
         var cred = {
             TableName: params.TableName,
-            Item: marshalItem({ credentialID: newID, credentialData: credData })
+            Item: marshalItem({ 
+                credentialID: newID, 
+                credentialData: credData.data, 
+                name: credData.name,
+                credType: credData.type
+            })
         }
     
         dynamodb.describeTable({TableName: params.TableName}, (err, data) => {
@@ -74,7 +112,7 @@ module.exports = {
         })
     },
     // retrieve a credential from the store
-    // returns { credentialID: , credentialData:  }
+    // returns { credentialID:, type:, name:, data  }
     readCred: function(credID, callback) {
         var dynamodb = new AWS.DynamoDB();
         
@@ -89,11 +127,10 @@ module.exports = {
             } else {
                 dynamodb.getItem(query, (getItemErr, getItemData) => {
                     if (getItemErr) {
-                        console.log(getItemErr)
                         callback(getItemErr, null)
                     } else {
                         if (getItemData.Item) {
-                            callback(null, unmarshalItem(getItemData.Item))
+                            callback(null, unmarshalCred(getItemData.Item))
                         } else {
                             // item not found
                             callback({error: "ENOENT"})
@@ -106,27 +143,26 @@ module.exports = {
     // list the credentials in the store
     // returns [{ credentialID: , credentialData:  }]
     listCreds: function(callback) {
-        var dynamodb = new AWS.DynamoDB();
-        
         var query = {
             TableName: params.TableName
         }
         
-        dynamodb.describeTable({TableName: params.TableName}, (err, data) => {
-            if (err) {
-                callback(err, null)
-            } else {
-                dynamodb.scan(query, (err, data) => {
-                    if (err) {
-                        callback("Unable to scan table.  Error JSON: " + JSON.stringify(err, null, 2), null)
-                    } else {
-                        callback(null, data.Items.map((item) => {
-                            return unmarshalItem(item)
-                        }))
-                    }
-                })
-            }
-        })
+        scanCreds(query, callback)
+    },
+    // list the credentials in the store, filtered by type
+    // returns [{ credentialID: , credentialData:  }]
+    filterCredsByType: function(type, callback) {
+        var query = {
+            ExpressionAttributeValues: {
+                ":t": {
+                    S: type
+                }  
+            },
+            FilterExpression: "credType = :t",
+            TableName: params.TableName
+        }
+        
+        scanCreds(query, callback)
     },
     deleteCred: function(credID, callback) {
         var dynamodb = new AWS.DynamoDB();

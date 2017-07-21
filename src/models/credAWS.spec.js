@@ -50,12 +50,14 @@ describe('CredAWS', () => {
             callback(null, 'existing table')
         })
         AWS.mock('DynamoDB', 'getItem', (params, callback) =>{
-            data = { Item: { "credentialID": { S: "my cred id" }, "credentialData": { S: "my cred" } } }
+            data = { Item: { "credentialID": { S: "my cred id" }, "credentialData": { S: "my cred" }, "name": { S: "test cred" }, "credType": { S: "test" } } }
             callback(null, data)
         })
         cred.readCred("my cred id", (err, data) => {
             expect(err).to.be.null
-            expect(data.credentialData).to.equal("my cred")
+            expect(data.data).to.equal("my cred")
+            expect(data.type).to.equal("test")
+            expect(data.name).to.equal("test cred")
         }) 
     })
     it('ListCreds should complete with credential list', () => {

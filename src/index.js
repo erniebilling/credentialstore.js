@@ -3,12 +3,16 @@ var promisify = require('promisify-node')
 var model = promisify(require('./models/credAWS'))
 var keymgmt = promisify(require('./models/kmsAWS'))
 var config = require('./config')
+var logger = require('bunyan')
 
-var server = restify.createServer()
+var log = new logger({name: 'server'})
+
+var server = restify.createServer({log: log})
 
 server.pre(restify.pre.userAgentConnection());
 
 // default handler filters
+server.use(restify.requestLogger())
 server.use(restify.acceptParser(server.acceptable))
 server.use(restify.queryParser())
 server.use(restify.bodyParser())
@@ -20,19 +24,19 @@ require('./routes')(server)
 // get things going
 model.initModel()
 .then(msg => {
-    console.log("Initialized " + msg)
+    log.info("Initialized", msg)
     // init kms info
     return keymgmt.initModel()
 })
 .then(msg => {
-    console.log("Using CMK " + msg)
+    log.info("Using CMK", msg)
     // model initialized, start the server
     server.listen(config.server_port, () => {
-        console.log('%s listening at %s', server.name, server.url);
+        log.info('%s listening at %s', server.name, server.url);
     });
 })
 .catch(err => {
-    console.log('failed to initialize: ' + JSON.stringify(err, null, 2))
+    log.error('failed to initialize:', err)
     exit(1)
 })
 

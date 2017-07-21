@@ -9,27 +9,34 @@ var path = require('path')
 
 var credBuilder = function(cred, baseURL) {
     return new Promise((resolve,reject) => {
-        keymgmt.decryptKey(cred.credentialData.data.cmkId, Buffer.from(cred.credentialData.data.encryptedDataKey, 'hex'))
-        .then((data) => {
-            let ret = {
-                data: JSON.parse(crypto.decrypt(data.dataKey, cred.credentialData.data.encryptedData)),
-                name: cred.credentialData.name,
-                type: cred.credentialData.type,
+        if (cred.data && cred.data.cmkId && cred.data.encryptedDataKey) {
+            keymgmt.decryptKey(cred.data.cmkId, Buffer.from(cred.data.encryptedDataKey, 'hex'))
+            .then((data) => {
+                let ret = {
+                    data: JSON.parse(crypto.decrypt(data.dataKey, cred.data.encryptedData)),
+                    name: cred.name,
+                    type: cred.type,
+                    id: cred.credentialID,
+                    links: [{rel:'self', href:path.join(baseURL, cred.credentialID)}]
+                }
+                resolve(ret)
+            })
+            .catch((err) => {
+                reject(err)
+            })
+        } else {
+            resolve({
                 id: cred.credentialID,
                 links: [{rel:'self', href:path.join(baseURL, cred.credentialID)}]
-            }
-            resolve(ret)
-        })
-        .catch((err) => {
-            reject(err)
-        })
+            })
+        }
     })
 }
 
 module.exports = {
     // add a new credential to the store
     // return new credential id
-    // expects { type: , name:, data: }
+    // expects { type:, name:, data: }
     addCredential: function(req, res, next) {
         // get key
         keymgmt.generateKey()
@@ -47,12 +54,21 @@ module.exports = {
             next()
         })
         .catch(err => {
-            res.send(500,err)
+            req.log.error(err)
+            res.send(500)
         })
     },
     // return list of all credentials in the store
+    // returns { items: [], itemCount: }
     listCredentials: function(req, res, next) {
-        model.listCreds()
+        var promise
+        if (req.params.type) {
+            promise = model.filterCredsByType(req.params.type)
+        } else {
+            promise = model.listCreds()
+        }
+        
+        promise
         .then(rawCreds => {
             return Promise.all(rawCreds.map((cred) => {
                 return credBuilder(cred, req.url)
@@ -63,7 +79,8 @@ module.exports = {
             next();
         })
         .catch(err => {
-            res.send(500,err)
+            req.log.error(err)
+            res.send(500)
         })
     },
     // get credential by id
@@ -79,7 +96,8 @@ module.exports = {
             if (err.error === "ENOENT") {
                 res.send(404)
             } else {
-                res.send(500,err)
+                req.log.error(err)
+                res.send(500)
             }
         })
     },
@@ -90,7 +108,8 @@ module.exports = {
             res.send(204)
         })
         .catch(err => {
-            res.send(500,err)
+            req.log.error(err)
+            res.send(500)
         })
     }
 }
