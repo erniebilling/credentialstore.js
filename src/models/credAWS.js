@@ -16,9 +16,7 @@ var params = {
         { AttributeName: "credentialID", KeyType: "HASH"} // partition key
     ],
     AttributeDefinitions: [
-        { AttributeName: "credentialID", AttributeType: "S"},  // string (guid)
-        { AttributeName: "name", AttributeType: "S"},
-        { AttributeName: "credType", AttributeType: "S"}
+        { AttributeName: "credentialID", AttributeType: "S"}  // string (guid)
     ],
     ProvisionedThroughput: {
         ReadCapacityUnits: 5,

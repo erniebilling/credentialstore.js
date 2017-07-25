@@ -4,10 +4,22 @@ var model = promisify(require('./models/credAWS'))
 var keymgmt = promisify(require('./models/kmsAWS'))
 var config = require('./config')
 var logger = require('bunyan')
+var fs = require('fs')
+var path = require('path')
 
 var log = new logger({name: 'server'})
 
 var server = restify.createServer({log: log})
+
+const mks_config_file = path.join(config.kms_config_dir, "cmkid")
+
+var getCmkId = function(callback) {
+    fs.readFile(mks_config_file, 'utf8', callback)
+}
+
+var putCmkId = function(cmkId, callback) {
+    fs.writeFile(mks_config_file, cmkId, callback)
+}
 
 server.pre(restify.pre.userAgentConnection());
 
@@ -26,7 +38,7 @@ model.initModel()
 .then(msg => {
     log.info("Initialized", msg)
     // init kms info
-    return keymgmt.initModel()
+    return keymgmt.initModel(getCmkId, putCmkId)
 })
 .then(msg => {
     log.info("Using CMK", msg)

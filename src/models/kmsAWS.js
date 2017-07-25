@@ -1,16 +1,28 @@
 // src/model/kmsAWS.js
-var fs = require('fs')
 var path = require('path')
 var AWS = require('aws-sdk')
-var config = require('../config')
 
-const mks_config_file = path.join(config.kms_config_dir, "cmkid")
+/**
+ * Callback
+ *
+ * @callback requestCallback
+ * @param {object} err non null if call failed
+ * @param {object} data returned data
+ */
+
 
 module.exports = {
     cmkId: "unknown",
-    initModel: function(callback) {
+    
+    /**
+     * Initialize KMS
+     * @param {function} getCmkId - function(callback) that returns master cmkId or error if it doesn't exist
+     * @param {function} putCmkId - function(data,callback) that writes cmkId to permanent store for use on restart
+     * @param {requestCallback} callback
+     */
+    initModel: function(getCmkId, putCmkId, callback) {
         // make sure there is a customer master key to use (CMK)
-        fs.readFile(mks_config_file, 'utf8', (err, data) => {
+        getCmkId((err, data) => {
             if (err) {
                 // no existing cmkid file, generate a cmk
                 let kms = new AWS.KMS()
@@ -33,7 +45,7 @@ module.exports = {
                         this.cmkId = data.KeyMetadata.KeyId
                         
                         // write key to config file
-                        fs.writeFile(mks_config_file, this.cmkId, (err) => {
+                        putCmkId(this.cmkId, (err) => {
                             if (err) {
                                 callback(err, null)
                             } else {
@@ -48,7 +60,12 @@ module.exports = {
             }
         })
     },
-    // data will be { }
+    /**
+     * generate a key
+     * @param {requestCallback} callback 
+     *
+     * on success, data will be {cmkId, encryptedDataKey, dataKey}
+     */
     generateKey: function(callback) {
         if ("unknown" === this.cmkId) {
             callback("initModel has not been called", null)
@@ -71,6 +88,14 @@ module.exports = {
             })
         }
     },
+    /**
+     * decrypt an encrypted key
+     * @param {string} cmkId master key id, as returned by generateKey
+     * @param {Buffer} buffer containing encrypted key data
+     * @param {requestCallback} callback
+     *
+     * on success, data will be {dataKey: <string>}
+     */
     decryptKey: function(cmkId, encryptedKey, callback) {
         let kms = new AWS.KMS()
         let params = {

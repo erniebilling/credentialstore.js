@@ -4,18 +4,26 @@ var chai = require('chai')
 var expect = chai.expect
 var AWS = require('aws-sdk-mock')
 var fs = require('fs')
-var fsMock = require('mock-fs')
 var kms = require('./kmsAWS')
 
+var cmkId = null
+
+var getCmkId = function(callback) {
+    if ( cmkId === null ) {
+        callback('error')
+    } else {
+        callback(null, cmkId)
+    }
+}
+
+var putCmkId = function(data, callback) {
+    cmkId = data
+    callback(null, data)
+}
 
 describe('KmsAWS', () => {
     
-    before(() => {
-        fsMock({
-            '.': {}
-        })
-    })
-    
+
     beforeEach( () => {
         AWS.mock('KMS', 'createKey', (params, callback) => {
             callback(null, { KeyMetadata: {
@@ -23,7 +31,7 @@ describe('KmsAWS', () => {
                                  Arn: "arn:aws:kms:us-east-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890aa", 
                                  Description: "", 
                                  Enabled: true, 
-                                 KeyId: "1234abcd-12ab-34cd-56ef-1234567890ab", 
+                                 KeyId: "1234abcd-12ab-34cd-56ef-1234567890aa", 
                                  KeyState: "Enabled", 
                                  KeyUsage: "ENCRYPT_DECRYPT", 
                                  Origin: "AWS_KMS"
@@ -34,6 +42,7 @@ describe('KmsAWS', () => {
 
     afterEach( () => {
         AWS.restore()
+        cmkId = null
     })
     
     it('generateKey() fails if model not initialized', () => {
@@ -42,31 +51,26 @@ describe('KmsAWS', () => {
         })
     })
     it('initModel() should cache key', () => {
-        expect(fs.existsSync("./cmkid")).to.be.false
-
-        kms.initModel((err, data) => {
+        kms.initModel(getCmkId, putCmkId, (err, data) => {
             expect(err).to.be.null
             expect(fs.existsSync("./cmkid")).to.be.true
             expect(data).to.equal("1234abcd-12ab-34cd-56ef-1234567890aa")
-            console.log(data)
         })
     })
     it('generateKey() returns proper data', () => {
         AWS.mock('KMS', 'generateDataKey', (params, callback) => {
             callback(null, {
                 CiphertextBlob: "0123456789abcdefghij9876543210zy",
-                KeyId: "arn:aws:kms:us-east-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab",
+                KeyId: "arn:aws:kms:us-east-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890aa",
                 Plaintext: "zy9876543210abcdefghij0123456789"
             })
         })
-        kms.initModel((err, data) => {
-            console.log(err,data)
+        kms.initModel(getCmkId, putCmkId, (err, data) => {
             expect(err).to.be.null
-            expect(data).to.equal("1234abcd-12ab-34cd-56ef-1234567890ab")
-            console.log(data)
+            expect(data).to.equal("1234abcd-12ab-34cd-56ef-1234567890aa")
             kms.generateKey((err, data) => {
                 expect(err).to.be.null
-                expect(data.cmkId).to.equal("arn:aws:kms:us-east-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab")
+                expect(data.cmkId).to.equal("arn:aws:kms:us-east-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890aa")
                 expect(data.encryptedDataKey).to.equal("0123456789abcdefghij9876543210zy")
                 expect(data.dataKey).to.equal("zy9876543210abcdefghij0123456789")
             })
@@ -76,24 +80,18 @@ describe('KmsAWS', () => {
         AWS.mock('KMS', 'decrypt', (params, callback) => {
             expect(params.CiphertextBlob).to.equal("0123456789abcdefghij9876543210zy")
             callback(null, {
-                KeyId: "arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ac", 
+                KeyId: "arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890aa", 
                 Plaintext: "zy9876543210abcdefghij0123456789"
             })
         })
-        kms.initModel((err, data) => {
-            console.log(err,data)
+        kms.initModel(getCmkId, putCmkId, (err, data) => {
             expect(err).to.be.null
-            expect(data).to.equal("1234abcd-12ab-34cd-56ef-1234567890ac")
-            console.log(data)
-            kms.decryptKey("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ac", "0123456789abcdefghij9876543210zy", (err, data) => {
+            expect(data).to.equal("1234abcd-12ab-34cd-56ef-1234567890aa")
+            kms.decryptKey("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890aa", "0123456789abcdefghij9876543210zy", (err, data) => {
                 expect(err).to.be.null
                 expect(data.dataKey).to.equal("zy9876543210abcdefghij0123456789")    
             })
         })
-    })
-    
-    after(() => {
-        fsMock.restore()
     })
 })
 
