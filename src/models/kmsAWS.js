@@ -1,5 +1,5 @@
 // src/model/kmsAWS.js
-var path = require('path')
+
 var AWS = require('aws-sdk')
 
 /**
