@@ -1,8 +1,5 @@
 // src/controllers/index.js
-var promisify = require('promisify-node')
-var model = promisify(require('../models/credAWS'))
-var crypto = require('../lib/crypto')
-var keymgmt = promisify(require('../models/kmsAWS'))
+
 var service = require('../service/credentialService')
 var path = require('path')
 

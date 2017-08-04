@@ -3,7 +3,6 @@
 var chai = require('chai')
 var expect = chai.expect
 var AWS = require('aws-sdk-mock')
-var fs = require('fs')
 var kms = require('./kmsAWS')
 
 var cmkId = null
@@ -53,7 +52,6 @@ describe('KmsAWS', () => {
     it('initModel() should cache key', () => {
         kms.initModel(getCmkId, putCmkId, (err, data) => {
             expect(err).to.be.null
-            expect(fs.existsSync("./cmkid")).to.be.true
             expect(data).to.equal("1234abcd-12ab-34cd-56ef-1234567890aa")
         })
     })
